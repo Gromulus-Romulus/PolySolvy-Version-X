@@ -8,13 +8,14 @@ Team: Nathan, Jaeger, Ronnie
 File Description:
 
 vmond.py programs the routines for solving for bivariate polynomial
-coefficients using a Vandermonde matrix. A Gaussian elimination procedure
+coefficients using a Vandermonde array. A Gaussian elimination procedure
 for solving linear systems (aka Matrix Row Reduction) is also implemented
 as an auxiliary function.
 """
 
 import doctest
 import numpy as np
+
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 #  TODO List:
@@ -31,7 +32,8 @@ class MatrixSolveError(Exception):
     """ Any error intentionally raised by Gauss or Vandermonde. """
     pass
 
-def Gauss(A: np.matrix, b: np.array) -> np.array:
+
+def Gauss(A: np.array, b: np.array) -> np.array:
     """
     Gaussian elimination procedure (aka Row Reduction) for
     solving linear systems of the form Ax = b.
@@ -40,7 +42,7 @@ def Gauss(A: np.matrix, b: np.array) -> np.array:
     numerical errors associated with the Naive Algorithm
     (read C&K sections 7.1-7.2 for more details).
 
-    Assumes matrix A is square (N x N) and
+    Assumes array A is square (N x N) and
     solution vector b is N-dimensional.
 
     Returns values of vector x.
@@ -56,49 +58,18 @@ def Gauss(A: np.matrix, b: np.array) -> np.array:
     #  TESTING  #
     # - - - - - #
 
-    Basic Case: The following system can be solved by the naive algorithm (no SPP).
-
-         x1 + 2x2 = 1
-        3x1 + 4x2 = 1
-
-         x1 + 2x2 = 1
-             -2x2 = -2
-
-        Therefore, x2 = 1, which means x1 = -1
-
-    >>> A = np.matrix([[1, 2], [3, 4]], dtype=np.double)
-    >>> b = np.array([1, 1], dtype=np.double)
-    >>> Gauss(A, b)
-    array([-1,  1])
-
     Basic Case: Let's get a little more adventurous.
 
-        5x1 + 4x2 -  x3 = 0
-             10x2 - 3x3 = 11
-                     x3 = 3
-
-        The expected solution: x1 = -1, x2 = 2, x3 = 3.
-
-    >>> A = np.matrix([[5, 4, -1], [0, 10, -3], [0, 0, 1]], dtype=np.double)
-    >>> b = np.array([0, 11, 3], dtype=np.double)
-    >>> Gauss(A, b)
-    array([-1,  2,  3])
-
-    Edge Case: This system cannot be solved by the naive algorithm (needs SSP).
-
-        0x1 + x2 = 1
-         x1 + x2 = 2
-
-    >>> A = np.matrix([[0, 1], [1, 1]], dtype=np.double)
-    >>> b = np.array([1, 2], dtype=np.double)
-    >>> Gauss(A, b)
-    array([1, 1])
+    >> A = np.array([[3, -13, 9, 3], [-6, 4, 1, -18], [6, -2, 2, 4], [12, -8, 6, 10]], dtype=np.double)
+    >> b = np.array([-19, -34, 16, 26], dtype=np.double)
+    >> Gauss(A, b)
+    array([ 3.,  1., -2.,  1.])
 
     """
     N = A.shape[0]
 
     # Build coefficient vector
-    x = np.array([0 for i in range(N)])
+    x = np.array([0 for i in range(N)], dtype=np.double)
 
     # Index list prioritizes which row
     # should be scaled first.
@@ -111,7 +82,7 @@ def Gauss(A: np.matrix, b: np.array) -> np.array:
 
     # Scale list keeps track of what scale
     # factors are needed to normalize the
-    # coefficients for row i in matrix A.
+    # coefficients for row i in array A.
     Scale = [0 for i in range(N)]
 
     # - - - - - - - - - - - - - - - - - - - - - - - #
@@ -122,7 +93,7 @@ def Gauss(A: np.matrix, b: np.array) -> np.array:
     for i in range(N):
         SMAX = 0
         for j in range(N):
-            SMAX = max(SMAX, A[i, j])
+            SMAX = max(SMAX, abs(A[i, j]))
         Scale[i] = SMAX
 
     # Row Reduction - go through rows, prioritize which one
@@ -132,8 +103,8 @@ def Gauss(A: np.matrix, b: np.array) -> np.array:
         RMAX = 0
         for i in range(k, N):
             l_i = Index[i]
-            s_i = Scale[i]
-            r = abs(A[l_i, k]/s_i)
+            s_i = Scale[l_i]
+            r = abs(A[l_i, k] / s_i)
 
             # If scaled ratio is higher than previous encounter,
             # then this row should take higher priority.
@@ -142,14 +113,14 @@ def Gauss(A: np.matrix, b: np.array) -> np.array:
                 j = i
 
         # Swap terms to reorganize which rows take higher priority.
-        SWP      = Index[j]
+        SWP = Index[j]
         Index[j] = Index[k]
         Index[k] = SWP
 
-        # Eliminate entries in all other rows beneath row k.
+        l_k = Index[k]
+        # Eliminate entries in all other rows != row k.
         for i in range(k + 1, N):
             l_i = Index[i]
-            l_k = Index[k]
 
             XMULT = A[l_i, k] / A[l_k, k]
             A[l_i, k] = XMULT
@@ -161,10 +132,10 @@ def Gauss(A: np.matrix, b: np.array) -> np.array:
     #   PHASE 2 - Back Substitution   #
     # - - - - - - - - - - - - - - - - #
 
-    # Using the current values of Index and Scale,
+    # Using the current values of Index and the stored coefficients in A,
     # we will now alter the values of solution vector b
     # to match the manipulations we have already done
-    # to the coefficient matrix A.
+    # to the coefficient array A.
     for k in range(N - 1):
         l_k = Index[k]
         for i in range(k + 1, N):
@@ -176,7 +147,7 @@ def Gauss(A: np.matrix, b: np.array) -> np.array:
 
     # We are now well equipped to solve for the values
     # of our x-vector. This is the final step of the algorithm.
-    for i in range(N-1, -1, -1):
+    for i in range(N - 2, -1, -1):
         l_i = Index[i]
         SUM = b[l_i]
         for j in range(i + 1, N):
@@ -186,7 +157,8 @@ def Gauss(A: np.matrix, b: np.array) -> np.array:
 
     return x
 
-def Vandermonde(X: np.array, Y: np.array, Z: np.array) -> np.matrix:
+
+def Vandermonde(X: np.array, Y: np.array, Z: np.array) -> np.array:
     """
     Given a series of X, Y, and corresponding Z values,
     Vandermonde will return the coefficients associated
@@ -206,11 +178,11 @@ def Vandermonde(X: np.array, Y: np.array, Z: np.array) -> np.matrix:
 
     Base case 1:
 
-    >>> X = np.array([1, 1, 1, 2, 2, 2, 3, 3, 3], dtype=np.double)
-    >>> Y = np.array([1, 2, 3, 1, 2, 3, 1, 2, 3], dtype=np.double)
-    >>> Z = np.array([3.2, 4.4, 6.5, 2.5, 4.7, 5.8, 5.1, 3.6, 2.9], dtype=np.double)
+    >>> X = np.array([1, 3, 5, 4], dtype=np.double)
+    >>> Y = np.array([2, 5, 4, 1], dtype=np.double)
+    >>> Z = np.array([4.9, 2.6, 3.7, 7.8], dtype=np.double)
     >>> Vandermonde(X, Y, Z)
-    array([0.975, -5.275, 5.95, -3.925, 19.825, -21.55, 3.4, -14.7, 18.5])
+    array([0.31111, -0.47778, 1.48889, 1.07778])
 
     """
 
@@ -228,12 +200,14 @@ def Vandermonde(X: np.array, Y: np.array, Z: np.array) -> np.matrix:
 
     # NumPy matrices must have memory allocated prior to any computations.
     # Vandermonde Matrix encodes linear system f[X, Y] = Z.
-    VanderMat = np.matrix([[0 for i in range(N)] for j in range(N)], dtype=np.double)
+    VanderMat = [ [] for i in range(N) ]
+
+    # TODO
 
     for i in range(N):
         x = X[i]
+        y = Y[i]
         for j in range(N):
-            y = Y[j]
             VanderMat[i, j] = pow(x, i) * pow(y, j)
 
     # Extract coefficients from constructed VanderMat.
@@ -241,6 +215,7 @@ def Vandermonde(X: np.array, Y: np.array, Z: np.array) -> np.matrix:
     C = Gauss(VanderMat, Z)
 
     return C
+
 
 if __name__ == '__main__':
     print(doctest.testmod())
