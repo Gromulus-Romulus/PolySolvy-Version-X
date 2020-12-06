@@ -16,13 +16,11 @@ as an auxiliary function.
 import doctest
 import numpy as np
 
-
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 #  TODO List:
 #
 #  + Rigorously test these functions against ALL possible edge cases.
 #  + Connect this code to the polynomial interpolation file (yet to be written).
-#  + Gauss needs guardian code to stop it from solving inconsistent systems (1 = 0)
 #  + Vandermonde and Gauss both need guardian code to ensure the arrays passed are of
 #    type np.double exclusively.
 #
@@ -58,11 +56,9 @@ def Gauss(A: np.array, b: np.array) -> np.array:
     #  TESTING  #
     # - - - - - #
 
-    Basic Case: Let's get a little more adventurous.
-
-    >> A = np.array([[3, -13, 9, 3], [-6, 4, 1, -18], [6, -2, 2, 4], [12, -8, 6, 10]], dtype=np.double)
-    >> b = np.array([-19, -34, 16, 26], dtype=np.double)
-    >> Gauss(A, b)
+    >>> A = np.array([[3, -13, 9, 3], [-6, 4, 1, -18], [6, -2, 2, 4], [12, -8, 6, 10]], dtype=np.double)
+    >>> b = np.array([-19, -34, 16, 26], dtype=np.double)
+    >>> Gauss(A, b)
     array([ 3.,  1., -2.,  1.])
 
     """
@@ -193,29 +189,47 @@ def Vandermonde(X: np.array, Y: np.array, Z: np.array) -> np.array:
         raise MatrixSolveError("Tried to call Vandermonde with unbalanced X, Y, and Z arrays!")
 
     # Check for vacuous condition.
-    N = X.size
+    # We need n^2 points.
+    N_p2 = X.size
     C = np.array([])
-    if N == 0:
+    if N_p2 == 0:
         return C
 
     # NumPy matrices must have memory allocated prior to any computations.
-    # Vandermonde Matrix encodes linear system f[X, Y] = Z.
-    VanderMat = [ [] for i in range(N) ]
+    # Vandermonde Matrix encodes linear system V[X, Y] * C = Z
 
-    # TODO
+    # N is the length of one of the rows of the P mat.
+    N = int(np.sqrt(N_p2))
 
+    # Flattened power matrix P - used to generate rows of V.
+    # P = [[lambda x, y: None for i in range(N)] for j in range(N)]
+    P = []
+
+    # Build pow mat P
     for i in range(N):
+        for j in range(N):
+            # P[i][j] = lambda x, y: (x ** i) * (y ** j)
+            # Had to use currying to avoid lexical scoping errors.
+            P.append(lambda x, y, i=i, j=j: (pow(x, i)) * (pow(y, j)))
+
+    # Build Vandermonde Matrix V
+    V = np.zeros(shape=(N_p2, N_p2), dtype=np.double)
+
+    # For each row
+    for i in range(N_p2):
         x = X[i]
         y = Y[i]
-        for j in range(N):
-            VanderMat[i, j] = pow(x, i) * pow(y, j)
+
+        # For each column
+        for j in range(N_p2):
+            f = P[j]
+            V[i, j] = f(x, y)
 
     # Extract coefficients from constructed VanderMat.
     # In a sense, we are solving the linear system VanderMat * C = Z.
-    C = Gauss(VanderMat, Z)
+    C = Gauss(V, Z)
 
     return C
-
 
 if __name__ == '__main__':
     print(doctest.testmod())
